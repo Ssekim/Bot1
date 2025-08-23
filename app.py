@@ -4,14 +4,30 @@ from binance.enums import *
 import time
 import threading
 import os
+from pathlib import Path
+
+# Load environment variables from .env file if it exists
+env_path = Path('.') / '.env'
+if env_path.exists():
+    with open(env_path) as f:
+        for line in f:
+            if line.strip() and not line.startswith('#'):
+                key, value = line.strip().split('=', 1)
+                os.environ.setdefault(key, value)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', os.urandom(24))
 
 # Initialize Binance Client
-api_key = os.environ['BINANCE_API_KEY']
-api_secret = os.environ['BINANCE_API_SECRET']
+api_key = os.environ.get('BINANCE_API_KEY')
+api_secret = os.environ.get('BINANCE_API_SECRET')
+
+if not api_key or not api_secret:
+    raise ValueError("Binance API credentials not found. Please check your .env file")
+
 client = Client(api_key, api_secret)
+
+# ... rest of the code remains the same ...
 
 # Global variables
 stop_balance_display = False
