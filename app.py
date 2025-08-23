@@ -2,27 +2,7 @@ from flask import Flask, render_template, request, jsonify, session
 from binance.client import Client
 from binance.enums import *
 import time
-import threading
-import os
-from pathlib import Path
-
-# Load environment variables from .env file if it exists
-env_path = Path('.') / '.env'
-if env_path.exists():
-    with open(env_path) as f:
-        for line in f:
-            if line.strip() and not line.startswith('#'):
-                key, value = line.strip().split('=', 1)
-                os.environ.setdefault(key, value)
-
-app = Flask(__name__)
-app.secret_key = os.environ.get('FLASK_SECRET_KEY', os.urandom(24))
-
-# Initialize Binance Client
-api_key = os.environ.get('BINANCE_API_KEY')
-api_secret = os.environ.get('BINANCE_API_SECRET')
-
-if not api_key or not api_secret:
+import th
     raise ValueError("Binance API credentials not found. Please check your .env file")
 
 client = Client(api_key, api_secret)
@@ -147,51 +127,7 @@ def wait_for_order_completion(symbol, order_id, step_name):
             continue
             
         try:
-            order_status = client.get_order(symbol=symbol, orderId=order_id)
-            status = order_status['status']
-            
-            # Update order status
-            arbitrage_status["active_orders"][order_id]["status"] = status
-            
-            if status == 'FILLED':
-                print(f"Order {order_id} filled successfully")
-                # Remove from active orders
-                del arbitrage_status["active_orders"][order_id]
-                return float(order_status['executedQty'])
-            elif status in ['CANCELED', 'EXPIRED', 'REJECTED']:
-                print(f"Order {order_id} was {status}")
-                # Remove from active orders
-                del arbitrage_status["active_orders"][order_id]
-                return 0.0
-                
-            time.sleep(2)
-        except Exception as e:
-            print(f"Error checking order status: {e}")
-            time.sleep(5)
-
-def execute_arbitrage_task(pairs, usdt_amount, price1, price2, price3):
-    """Execute triangular arbitrage strategy (to run in thread)"""
-    global arbitrage_status
-    
-    # Clear previous logs
-    arbitrage_status["logs"] = []
-    arbitrage_status["running"] = True
-    arbitrage_status["paused"] = False
-    arbitrage_status["active_orders"] = {}
-    
-    def log_message(message):
-        timestamp = time.strftime("%H:%M:%S")
-        log_entry = f"{timestamp} - {message}"
-        arbitrage_status["logs"].append(log_entry)
-        print(log_entry)
-    
-    log_message("Starting arbitrage execution")
-    
-    # Get symbol information
-    symbols = [get_symbol_info(p) for p in pairs]
-    if any(s is None for s in symbols):
-        log_message("Error: Invalid symbol information")
-        arbitrage_status["running"] = False
+            order_status"] = False
         return
 
     # Extract asset names
@@ -320,42 +256,7 @@ def get_balances():
 def execute_arbitrage():
     """Execute arbitrage strategy"""
     if arbitrage_status["running"]:
-        return jsonify({"status": "error", "message": "Arbitrage already in progress"})
-    
-    data = request.get_json()
-    pairs = data.get('pairs', [])
-    usdt_amount = float(data.get('usdt_amount', 0))
-    price1 = float(data.get('price1', 0))
-    price2 = float(data.get('price2', 0))
-    price3 = float(data.get('price3', 0))
-    
-    if len(pairs) != 3:
-        return jsonify({"status": "error", "message": "Exactly 3 trading pairs required"})
-    
-    # Start arbitrage in a new thread
-    thread = threading.Thread(target=execute_arbitrage_task, args=(pairs, usdt_amount, price1, price2, price3))
-    thread.daemon = True
-    thread.start()
-    
-    return jsonify({"status": "success", "message": "Arbitrage started"})
-
-@app.route('/arbitrage_status', methods=['GET'])
-def get_arbitrage_status():
-    """Return current arbitrage execution status"""
-    return jsonify({
-        "running": arbitrage_status["running"],
-        "paused": arbitrage_status["paused"],
-        "current_step": arbitrage_status["current_step"],
-        "logs": arbitrage_status["logs"][-20:],  # Return last 20 logs
-        "active_orders": arbitrage_status["active_orders"]
-    })
-
-@app.route('/pause_arbitrage', methods=['POST'])
-def pause_arbitrage():
-    """Pause or resume arbitrage execution"""
-    data = request.get_json()
-    pause = data.get('pause', True)
-    arbitrage_status["paused"] = pause
+        return jsonify({"status": "error", "message": "Arbitrage already in pr
     return jsonify({"status": "success", "paused": pause})
 
 @app.route('/cancel_order', methods=['POST'])
